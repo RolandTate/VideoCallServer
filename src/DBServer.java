@@ -37,10 +37,7 @@ public class DBServer {
                 String msg = (String) objectInputStream.readObject();
 
 
-                //ClientConnection clientCon = new ClientConnection();
-                //clientCon.setSocket(clientSocket);
-                //clientCon.setObjectOutputStream(objectOutputStream);
-                //clientCon.setObjectInputStream(objectInputStream);
+
 
                 System.out.println("msg: "+msg);
                 if(msg != null) {

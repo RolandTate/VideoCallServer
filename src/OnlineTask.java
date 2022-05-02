@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 public class OnlineTask implements Runnable{
     private  Socket socket;
+    ClientConnection clientCon ;
     //private  BufferedInputStream bufferedInputStream;
     //private  BufferedReader bufferedReader;
     //private  OutputStream clientOutputStream;
@@ -28,6 +29,9 @@ public class OnlineTask implements Runnable{
         this.objectInputStream = objectInputStream;
         this.objectOutputStream = objectOutputStream;
         onlineTaskAlive =true;
+
+        clientCon = new ClientConnection();
+
 
     }
 
@@ -115,7 +119,7 @@ public class OnlineTask implements Runnable{
                 if(DBServer.ListLock.tryLock(800,TimeUnit.MICROSECONDS)) {
                     System.out.println("收到用户: " + userID + " 请求成员信息");
 
-                    addToOnlineSocketList(userID, socket);
+                    addToOnlineSocketList(userID);
 
                     List<User> users = new ArrayList();
                     ResultSet usersInfo = DBServer.dbHelper.getAllUserInformation();
@@ -152,21 +156,11 @@ public class OnlineTask implements Runnable{
                     System.out.println("收到用户视频通话请求");
                     String targetID = (String) objectInputStream.readObject();
                     System.out.println("用户: " + userID + "邀请用户: " + targetID + "进行通话");
-                    Socket targetSocket = null;
                     boolean targetSend = false;
 
-                    for (Map.Entry<String, Socket> entry : DBServer.clientList.entrySet()) {
-                        if (entry.getKey().equals(targetID)) {
-                            targetSocket = entry.getValue();
-                            DBServer.clientList.remove(targetID);
-                            targetSend = true;
-                            System.out.println("目标用户：" + entry.getKey() + " 在线，可以发送通话邀请");
-                        }
-                    }
-                    if (targetSend) {
-                        //OutputStream targetOut = targetSocket.getOutputStream();
-                        //targetOut.write("StartVideo\n".getBytes());
-                        //targetOut.write("first\n".getBytes());
+
+                    if (CheckUserOnlineListById(targetID)) {
+                        CallUser(targetID);
                         objectOutputStream.writeObject("StartSuccess");
                         objectOutputStream.writeObject("first");
 
@@ -193,7 +187,7 @@ public class OnlineTask implements Runnable{
                 if (DBServer.ListLock.tryLock(800, TimeUnit.MICROSECONDS)) {
                     System.out.println("收到用户: "+ userID +" 中断通话通知");
 
-                    addToOnlineSocketList(userID,socket);
+                    addToOnlineSocketList(userID);
 
                     System.out.println("用户：" + userID + "重新在线成功");
 
@@ -207,7 +201,17 @@ public class OnlineTask implements Runnable{
 
     }
 
-    private void addToOnlineSocketList(String id,Socket socket){
+    private void addToOnlineSocketList(String id){
+
+        clientCon.setSocket(socket);
+        clientCon.setObjectOutputStream(objectOutputStream);
+        clientCon.setObjectInputStream(objectInputStream);
+        for(Map.Entry<String,ClientConnection> entry : DBServer.clientConnections.entrySet()){
+            if(entry.getKey().equals(id))
+                DBServer.clientList.remove(id);
+        }
+        DBServer.clientConnections.put(id,clientCon);
+
         for(Map.Entry<String,Socket> entry : DBServer.clientList.entrySet()){
             if(entry.getKey().equals(id))
                 DBServer.clientList.remove(id);
@@ -215,6 +219,29 @@ public class OnlineTask implements Runnable{
         DBServer.clientList.put(id,socket);
 
         DBServer.dbHelper.updateTable(id,"online");
+    }
+
+    boolean CheckUserOnlineListById(String userID){
+        for (Map.Entry<String, Socket> entry : DBServer.clientList.entrySet()) {
+            if (entry.getKey().equals(userID)) {
+                System.out.println("目标用户：" + entry.getKey() + " 在线");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Boolean CallUser(String id) throws Exception{
+        for (Map.Entry<String, ClientConnection> entry : DBServer.clientConnections.entrySet()) {
+            if (entry.getKey().equals(id)) {
+                entry.getValue().getObjectOutputStream().writeObject("StartVideo");
+                entry.getValue().getObjectOutputStream().writeObject("first");
+
+                System.out.println("已向目标用户：" + entry.getKey() + " 发送通话邀请");
+                return true;
+            }
+        }
+        return false;
     }
 
     private void userOffline(String id){
