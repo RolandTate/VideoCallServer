@@ -163,6 +163,7 @@ public class OnlineTask implements Runnable{
                         CallUser(targetID);
                         objectOutputStream.writeObject("StartSuccess");
                         objectOutputStream.writeObject("first");
+                        System.out.println("已向提出邀请用户发送邀请成功通知");
 
                         setUserBusy(targetID);
                         setUserBusy(userID);
