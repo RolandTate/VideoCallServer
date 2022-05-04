@@ -8,24 +8,19 @@ import java.util.concurrent.TimeUnit;
 
 public class RegisterTask implements Runnable {
     private  Socket socket;
-    private  BufferedInputStream bufferedInputStream;
-    private  BufferedReader bufferedReader;
-    private  OutputStream clientOutputStream;
+    ObjectInputStream objectInputStream;
+    ObjectOutputStream objectOutputStream;
+    //private  BufferedInputStream bufferedInputStream;
+    //private  BufferedReader bufferedReader;
+    //private  OutputStream clientOutputStream;
     private boolean registerThreadAlive;
 
 
-    RegisterTask(Socket socket){
+    RegisterTask(Socket socket,ObjectInputStream objectInputStream,ObjectOutputStream objectOutputStream){
         this.socket = socket;
+        this.objectInputStream = objectInputStream;
+        this.objectOutputStream = objectOutputStream;
         registerThreadAlive = true;
-        try{
-            bufferedInputStream = new BufferedInputStream(socket.getInputStream());
-            //bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            bufferedReader = new BufferedReader(new InputStreamReader(bufferedInputStream));
-            clientOutputStream = socket.getOutputStream();
-        }catch (Exception e){
-            registerThreadAlive = false;
-            e.printStackTrace();
-        }
     }
 
     @Override
@@ -34,7 +29,7 @@ public class RegisterTask implements Runnable {
         while(registerThreadAlive) {
             try {
                 System.out.println("注册线程等待任务");
-                String task = bufferedReader.readLine();
+                String task = (String)objectInputStream.readObject();
                 System.out.println("注册线程开始任务: " + task);
 
                 switch (task) {
@@ -58,26 +53,26 @@ public class RegisterTask implements Runnable {
                 if (DBServer.ListLock.tryLock(800, TimeUnit.MICROSECONDS)) {
                     System.out.println("收到用户注册申请");
 
-                    String userID = bufferedReader.readLine();
+                    String userID = (String)objectInputStream.readObject();
                     System.out.println("注册模块读取客户端发送的数据成功！userID: " + userID);
 
-                    String userPassword = bufferedReader.readLine();
+                    String userPassword = (String)objectInputStream.readObject();
                     System.out.println("注册模块读取客户端发送的数据成功！userPassword: " + userPassword);
 
-                    String userName = bufferedReader.readLine();
+                    String userName = (String)objectInputStream.readObject();
                     System.out.println("注册模块读取客户端发送的数据成功！userName: " + userName);
 
                     if (!userID.equals("") && !userPassword.equals("")) {
                         if (DBInsert(userID, userPassword, userName)) {
                             System.out.println("用户：" + userID + "注册成功");
-                            clientOutputStream.write("success\n".getBytes());
+                            objectOutputStream.writeObject("success");
                             EndThread("注册成功，结束线程");
                         } else {
                             System.out.println("已有用户！注册失败！");
-                            clientOutputStream.write("fail\n".getBytes());
+                            objectOutputStream.writeObject("fail");
                         }
                     }else{
-                        clientOutputStream.write("empty\n".getBytes());
+                        objectOutputStream.writeObject("empty");
                     }
 
                     DBServer.DBLock.unlock();
@@ -104,12 +99,10 @@ public class RegisterTask implements Runnable {
         try {
             registerThreadAlive = false;
             //释放资源
-            if(bufferedInputStream != null)
-                bufferedInputStream.close();
-            if (bufferedReader != null)
-                bufferedReader.close();
-            if (clientOutputStream != null)
-                clientOutputStream.close();
+            if(objectOutputStream != null)
+                objectOutputStream.close();
+            if (objectInputStream != null)
+                objectInputStream.close();
             if (socket != null)
                 socket.close();
         }catch (Exception e){

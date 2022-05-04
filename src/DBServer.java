@@ -36,14 +36,11 @@ public class DBServer {
                 ObjectOutputStream objectOutputStream = new ObjectOutputStream(clientSocket.getOutputStream());
                 String msg = (String) objectInputStream.readObject();
 
-
-
-
                 System.out.println("msg: "+msg);
                 if(msg != null) {
                     if (msg.equals("registerRequest")) {
                         System.out.println("接收到客户端注册请求");
-                        RegisterTask registerTask = new RegisterTask(clientSocket);
+                        RegisterTask registerTask = new RegisterTask(clientSocket,objectInputStream,objectOutputStream);
                         executorService.submit(registerTask);
                     }
                     if(msg.equals("loginRequest")){
