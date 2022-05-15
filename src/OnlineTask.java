@@ -251,6 +251,11 @@ public class OnlineTask implements Runnable{
                 DBServer.clientList.remove(id);
         }
 
+        for(Map.Entry<String,ClientConnection> entry : DBServer.clientConnections.entrySet()){
+            if(entry.getKey().equals(id))
+                DBServer.clientConnections.remove(id);
+        }
+
         DBServer.dbHelper.updateTable(id,"offline");
     }
 
